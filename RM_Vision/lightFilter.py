@@ -7,11 +7,15 @@ import numpy as np
 def angle_correction(min_box):
 	#cv2最小矩形算法中，哪条边是width/height与这条边的长度无关。其width为：将x轴逆时针旋转，第一条与x轴平行的边为width
 	#min_box[1][0]是width，min_box[1][1]是height，如果width>height，则其角度正确，如果width<heigit，则其width,heigit和角度错误，需要交换width,height高并取角度补角
-	if min_box[1][0] < min_box[1][1]:
-		#swap(min_box[1][0],min_box[1][1])#交换了width和height
-		print(min_box[2])
-		min_box[2] = 90 + min_box[2]#取角度补角
-	return min_box[2]
+	width = min_box[1][0]
+	highth = min_box[1][1]
+	angle = min_box[2]
+	if width < highth:
+		width,highth = highth,width#交换了width和heighth
+		print('角度为：',angle)
+		angle = 90.0 + angle#取角度补角
+	wh_scale = width/highth
+	return angle,wh_scale
 
 #  自定义函数：用于筛选不是一组平行灯条的干扰
 #  输入 1：所有灯条轮廓
@@ -54,20 +58,21 @@ def get_final_box(contours):
 			#x, y, w, h = cv2.boundingRect(contours[i])
 			#box = ([x,y],[x+w,y],[x+w,y+h],[x,y+h])
 			min_box = cv2.minAreaRect(contours[i])
-			min_box_angle = angle_correction(min_box)#纠正该矩形的width,height，并矫正角度
-			if (80 > min_box_angle) and (min_box_angle > 100):
+			min_box_angle,wh_scale= angle_correction(min_box)#纠正该矩形的width,height，并矫正角度
+			if (min_box_angle < 80)&(min_box_angle > 100):
 				break#若该矩形的角度不在范围内，则跳出循环，不进行存储
-
+			if (wh_scale < 0.8)&(wh_scale >0.4):
+				break
 			#以下代码将有效矩形进行存储
-			print('所选最小矩形',min_box)
+			#print('所选最小矩形',min_box)
 			min_box_point = cv2.boxPoints(min_box)#取最小矩形四点
 			min_box_point = np.int0(min_box_point)# 矩形的四个角点取整
 			final_box = np.append(final_box,min_box_point,axis = 0)
 			final_box1 = np.split(final_box,len(final_box)/4)
-			for i in range(len(final_box)):
-				final_box[i] = np.int0(final_box[i])
+			
+			final_box = np.int0(final_box)
 			final_box1 = np.int0(final_box1)
-			print('可能四边形合集',final_box)
+			#print('可能四边形合集',final_box)
 		try:
 			final_rect = cv2.minAreaRect(final_box)
 			final_rect = np.int0(cv2.boxPoints(final_rect))
